@@ -1,10 +1,16 @@
 var async = require('async'),
-    fork = require('child_process'),
+	fork = require('child_process').fork,
+	wait = require('wait.for'),
+	sortarrayworker0 = fork('sortarrayworker.js'),
+	sortarrayworker1 = fork('sortarrayworker.js'),
+	sortarrayworker2 = fork('sortarrayworker.js'),
+	sortarrayworker3 = fork('sortarrayworker.js'),
     arraysize = 100000000,
 //    arraysize = 10,
     array = [],
     secondArray = [],
     arraySliced = [],
+	res0 = [], res1 = [], res2 = [], res3 = [],
     startTime, endTime, resultTime;
 
 function populateArray (arrayToPopulate, arrayToPopulateSize) {
@@ -46,15 +52,48 @@ function isArrayOddEvenSorted (arrayToCheck) {
     }
 }
 function asyncSortArrayOddEven (arrayToSort) {
-    return false;
+    async.parallel([
+    function (callback) {
+		sortarrayworker0.send(sliceArrayIntoFour(arrayToSort)[0]);
+		sortarrayworker0.on('message', function (response) {
+			callback(null, response);
+		})
+	},
+    function (callback) {
+		sortarrayworker1.send(sliceArrayIntoFour(arrayToSort)[1]);
+		sortarrayworker1.on('message', function (response) {
+			callback(null, response);
+		})
+	},
+    function (callback) {
+		sortarrayworker2.send(sliceArrayIntoFour(arrayToSort)[2]);
+		sortarrayworker2.on('message', function (response) {
+			callback(null, response);
+		})
+	},
+	function (callback) {
+		sortarrayworker3.send(sliceArrayIntoFour(arrayToSort)[3]);
+		sortarrayworker3.on('message', function (response) {
+			callback(null, response);
+		})
+	},
+	], function (err, results) {
+		if (err) return console.log(err);
+		arrayToSort = [];
+		for (i of results) {
+			arrayToSort = arrayToSort.concat(i);
+			i.length;
+		}
+		console.log(arrayToSort.length);
+	});
 }
 function sliceArrayIntoFour (arrayToSlice) {
     //todo: parametrize parts size
     var slicedArray = [];
     slicedArray.push(arrayToSlice.slice(0,24999999));
     slicedArray.push(arrayToSlice.slice(25000000,49999999));
-    slicedArray.push(arrayToSlice.slice(50000000,24999999));
-    slicedArray.push(arrayToSlice.slice(75000000,10000000));
+    slicedArray.push(arrayToSlice.slice(50000000,74999999));
+    slicedArray.push(arrayToSlice.slice(75000000,100000000));
     return slicedArray;
 }
 
@@ -81,10 +120,7 @@ console.log('\tArray is sorted: ' + isArrayOddEvenSorted(array));
 console.log('\tArray length = ' + array.length);
 //console.log('Sorted array: ' + array + '\n');
 
-console.log('\nSlicing array into four...')
-arraySliced = sliceArrayIntoFour(secondArray);
-
-console.log('\nAsync sorting array...\n')
+console.log('\nAsync sorting array...\n');
 
 startTime = Date.now();
 asyncSortArrayOddEven(secondArray);
